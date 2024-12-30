@@ -12,8 +12,6 @@ import org.springframework.cache.annotation.Cacheable;
 
 @RestController
 public class app {
-    @Autowired
-    producer producer;
 
     @Autowired
     private UserRepository userRepository;
@@ -53,11 +51,4 @@ public class app {
     public String getCachedRedisMessage() {
         return "redis called";
     }
-
-
-    @RequestMapping("/produceMsg")
-    public void getMessageFromClient(@RequestParam("message") String message) {
-        producer.sendMsgToTopic(message);
-        }
-    
 }
