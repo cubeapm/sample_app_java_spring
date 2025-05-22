@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y openjdk-17-jdk maven wget
 
 COPY . .
 
+ADD https://download.newrelic.com/newrelic/java-agent/newrelic-agent/current/newrelic-agent.jar .
+
 RUN ./mvnw clean install  
 
 EXPOSE 8000
