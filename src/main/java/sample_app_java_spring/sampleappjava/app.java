@@ -3,11 +3,13 @@ package sample_app_java_spring.sampleappjava;
 // import org.apache.kafka.clients.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.client.RestTemplate;
 import org.springframework.cache.annotation.Cacheable;
 
 @RestController
@@ -16,6 +18,8 @@ public class app {
     @Autowired
     private UserRepository userRepository;
 
+    @Autowired
+    private RestTemplate restTemplate;
 
 
     @RequestMapping("/")
@@ -27,6 +31,17 @@ public class app {
     public String throwException() {
         throw new RuntimeException("Exception");
         }
+
+    @GetMapping("/param/{param}")
+    public String getParam(@PathVariable String param) {
+        return "Got param " + param;
+    }
+
+    @GetMapping("/api")
+    public String api() {
+        String response = restTemplate.getForObject("http://localhost:8000", String.class);
+        return "API called: " + response;
+    }
 
     // curl http://localhost:8080/mysql/add -d name="xyz" -d email="xyz@gmail.com"
     @PostMapping("/mysql/add")
@@ -49,6 +64,6 @@ public class app {
     @GetMapping("/redis")
     @Cacheable("redisCache")
     public String getCachedRedisMessage() {
-        return "redis called";
+        return "Redis called";
     }
 }

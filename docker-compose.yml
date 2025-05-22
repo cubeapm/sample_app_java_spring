@@ -3,20 +3,9 @@ services:
   java:
     build:
       context: .
-    container_name: cube_java
-    environment:
-      - JAVA_TOOL_OPTIONS=-javaagent:./opentelemetry-javaagent.jar
-      - OTEL_SERVICE_NAME=cube_java
-      - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
-
-
-      # print traces on console
-      # - Dotel.javaagent.debug=true
-
-      # send traces to CubeAPM
-      - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://host.docker.internal:4318/v1/traces
+    container_name: cube_java_springboot
     ports:
-      - "8081:8081"
+      - "8000:8000"
     depends_on:
       - mysql
       - redis

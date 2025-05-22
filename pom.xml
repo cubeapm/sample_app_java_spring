@@ -5,7 +5,7 @@
 	<parent>
 		<groupId>org.springframework.boot</groupId>
 		<artifactId>spring-boot-starter-parent</artifactId>
-		<version>3.1.5</version>
+		<version>3.4.5</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
 	<groupId>sample_app_java_spring</groupId>
@@ -28,12 +28,13 @@
 		 <dependency>
         	<groupId>com.mysql</groupId>
         	<artifactId>mysql-connector-j</artifactId>
+			<version>8.4.0</version>
         	<scope>runtime</scope>
     	</dependency>
 		<dependency>
         	<groupId>org.springframework</groupId>
         	<artifactId>spring-expression</artifactId>
-        	<version>6.0.13</version> <!-- Check this version -->
+        	<version>6.2.7</version>
     	</dependency>
 
 		<dependency>
@@ -44,18 +45,19 @@
 		<dependency>
     		<groupId>org.springframework</groupId>
     		<artifactId>spring-messaging</artifactId>
-    		<version>6.0.13</version>
+    		<version>6.2.7</version>
 		</dependency>
 
 		<dependency>
 			<groupId>redis.clients</groupId>
 			<artifactId>jedis</artifactId>
+			<version>6.0.0</version>
 		</dependency>
 
 		<dependency>
     		<groupId>org.springframework.data</groupId>
     		<artifactId>spring-data-redis</artifactId>
-    		<version>3.1.5</version>
+    		<version>3.5.0</version>
   		</dependency>
 
 		<dependency>
