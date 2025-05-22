@@ -6,6 +6,8 @@ RUN apt-get update && apt-get install -y openjdk-17-jdk maven wget
 
 COPY . .
 
+ADD https://github.com/open-telemetry/opentelemetry-java-instrumentation/releases/latest/download/opentelemetry-javaagent.jar .
+
 RUN ./mvnw clean install  
 
 EXPOSE 8000
