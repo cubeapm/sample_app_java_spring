@@ -8,16 +8,29 @@ services:
       - JAVA_TOOL_OPTIONS=-javaagent:./opentelemetry-javaagent.jar
       - OTEL_SERVICE_NAME=cube_sample_java_spring_boot_otel
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
-      - OTEL_METRICS_EXPORTER=none
-      - OTEL_LOGS_EXPORTER=none
-      - OTEL_TRACES_EXPORTER=otlp
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 
+      # enable debug mode
+      # - OTEL_JAVAAGENT_DEBUG=true
+
       # print traces on console
-      - OTEL_JAVAAGENT_DEBUG=true
-      
+      - OTEL_TRACES_EXPORTER=console
       # send traces to CubeAPM
+      # - OTEL_TRACES_EXPORTER=otlp
       # - OTEL_EXPORTER_OTLP_TRACES_ENDPOINT=http://host.docker.internal:4318/v1/traces
+
+      # print metrics on console
+      - OTEL_METRICS_EXPORTER=console
+      # send metrics to CubeAPM
+      # - OTEL_METRICS_EXPORTER=otlp
+      # - OTEL_EXPORTER_OTLP_METRICS_ENDPOINT=http://host.docker.internal:3130/api/metrics/v1/save/otlp
+
+      # print logs on console
+      - OTEL_LOGS_EXPORTER=console
+      # send logs to CubeAPM
+      # - OTEL_LOGS_EXPORTER=otlp
+      # - OTEL_EXPORTER_OTLP_LOGS_ENDPOINT=http://host.docker.internal:3130/api/logs/insert/opentelemetry/v1/logs
+      # - OTEL_EXPORTER_OTLP_LOGS_HEADERS=Cube-Stream-Fields=service.name%2Cseverity
     ports:
       - "8000:8000"
     depends_on:
