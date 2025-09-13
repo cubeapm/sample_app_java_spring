@@ -10,6 +10,9 @@ services:
       - ELASTIC_APM_SERVICE_NAME=cube_sample_java_spring_boot_elastic
       - ELASTIC_APM_SERVER_URL=http://host.docker.internal:3130
 
+      # capture jvm non-heap buffer pool metrics
+      - ELASTIC_APM_CAPTURE_JMX_METRICS=object_name[java.nio:type=BufferPool,name=*] attribute[*]
+
       # optional settings
       # Elastic agent sets environment from NODE_ENV by default
       # - ELASTIC_APM_ENVIRONMENT=UNSET
