@@ -10,6 +10,9 @@ services:
       - OTEL_EXPORTER_OTLP_COMPRESSION=gzip
       - OTEL_EXPORTER_OTLP_PROTOCOL=http/protobuf
 
+      # capture jvm non-heap buffer pool metrics
+      - OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_JAVA17_ENABLE_ALL=true
+
       # enable debug mode
       # - OTEL_JAVAAGENT_DEBUG=true
 
