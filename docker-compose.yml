@@ -13,6 +13,9 @@ services:
       # capture jvm non-heap buffer pool metrics
       - OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_JAVA17_ENABLE_ALL=true
 
+      # optional settings
+      - OTEL_RESOURCE_ATTRIBUTES=cube.environment=UNSET,service.version=1.2.3,mykey1=myvalue1,mykey2=myvalue2
+
       # enable debug mode
       # - OTEL_JAVAAGENT_DEBUG=true
 
