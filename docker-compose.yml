@@ -8,19 +8,19 @@ services:
       - JAVA_TOOL_OPTIONS=-javaagent:./newrelic-agent.jar
 
       # New Relic agent will send data on https://<domain_of_cubeapm_server>:443
-      - NEW_RELIC_HOST=<domain_of_cubeapm_server>
       - NEW_RELIC_APP_NAME=cube_sample_java_spring_boot_newrelic
       - NEW_RELIC_LICENSE_KEY=ABC4567890ABC4567890ABC4567890ABC4567890
 
       # Print New Relic agent logs on screen
       # - NEW_RELIC_LOG=stdout
       # Set New Relic agent log level to debug if needed to see detailed logs
-      # - NEW_RELIC_LOG_LEVEL=debug
+      - NEW_RELIC_LOG_LEVEL=debug
     ports:
       - "8000:8000"
     depends_on:
       - mysql
       - redis
+      - rabbitmq
     restart: always
 
   mysql:
@@ -37,6 +37,16 @@ services:
   redis:
     image: redis:alpine3.18
     container_name: cube_java_springboot_redis
+
+  rabbitmq:
+    image: rabbitmq:3.13-management
+    container_name: cube_java_springboot_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
 
 volumes:
   cube_java_springboot_mysql:

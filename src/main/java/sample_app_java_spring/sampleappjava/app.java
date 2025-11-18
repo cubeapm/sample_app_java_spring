@@ -11,15 +11,28 @@ import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.client.RestTemplate;
 import org.springframework.cache.annotation.Cacheable;
+import com.newrelic.api.agent.Token;
+import com.newrelic.api.agent.NewRelic;
+
 
 @RestController
 public class app {
+
+    @Autowired
+    private EmailService emailService;
 
     @Autowired
     private UserRepository userRepository;
 
     @Autowired
     private RestTemplate restTemplate;
+
+    @GetMapping("/send-email")
+    public String sendEmail(@RequestParam String to) {
+        Token token = NewRelic.getAgent().getTransaction().getToken();
+        emailService.sendEmail(to, token);  // This is async
+        return "Email scheduled to: " + to;
+    }
 
 
     @RequestMapping("/")

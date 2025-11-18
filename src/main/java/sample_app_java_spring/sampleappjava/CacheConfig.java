@@ -11,7 +11,7 @@ import org.springframework.web.client.RestTemplate;
 
 @Configuration
 public class CacheConfig {
-     @Bean
+    @Bean
     public RestTemplate restTemplate() {
         return new RestTemplate();
     }
@@ -19,12 +19,10 @@ public class CacheConfig {
     @Bean
     public CacheManager cacheManager(RedisConnectionFactory redisConnectionFactory) {
         RedisCacheConfiguration cacheConfiguration = RedisCacheConfiguration.defaultCacheConfig()
-        .entryTtl(java.time.Duration.ofMinutes(15));
+                .entryTtl(java.time.Duration.ofMinutes(15));
 
         return RedisCacheManager.builder(redisConnectionFactory)
                 .cacheDefaults(cacheConfiguration)
                 .build();
     }
-
-    
 }
