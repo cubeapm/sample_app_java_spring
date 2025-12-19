@@ -47,7 +47,7 @@ public class app {
     @GetMapping("/api")
     public String api() {
         logger.info("api called calling external service");
-        String response = restTemplate.getForObject("http://localhost:8000", String.class);
+        String response = restTemplate.getForObject("http://java2:8001", String.class);
         logger.info("api response received");
         return "API called: " + response;
     }

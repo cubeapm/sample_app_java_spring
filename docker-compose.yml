@@ -11,6 +11,19 @@ services:
       - redis
     restart: always
 
+  java2:
+    build:
+      context: .
+    container_name: cube_java_springboot2
+    environment:
+      - SERVER_PORT=8001
+    ports:
+      - "8001:8001"
+    depends_on:
+      - mysql
+      - redis
+    restart: always
+
   mysql:
     image: mysql:8.0
     container_name: cube_java_springboot_mysql
