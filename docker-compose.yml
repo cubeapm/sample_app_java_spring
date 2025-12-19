@@ -13,6 +13,9 @@ services:
       # capture jvm non-heap buffer pool metrics
       - ELASTIC_APM_CAPTURE_JMX_METRICS=object_name[java.nio:type=BufferPool,name=*] attribute[*]
 
+      # Send logs to CubeAPM
+      - ELASTIC_APM_LOG_SENDING=true
+
       # optional settings
       # Elastic agent sets environment from NODE_ENV by default
       # - ELASTIC_APM_ENVIRONMENT=UNSET
