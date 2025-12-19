@@ -3,6 +3,9 @@ services:
   java:
     build:
       context: .
+      args:
+        # https://download.newrelic.com/newrelic/java-agent/newrelic-agent/
+        VERSION: "8.25.0"
     container_name: cube_java_springboot
     environment:
       - JAVA_TOOL_OPTIONS=-javaagent:./newrelic-agent.jar
@@ -32,9 +35,29 @@ services:
   java2:
     build:
       context: .
+      args:
+        # https://download.newrelic.com/newrelic/java-agent/newrelic-agent/
+        VERSION: "8.25.0"
     container_name: cube_java_springboot2
     environment:
+      - JAVA_TOOL_OPTIONS=-javaagent:./newrelic-agent.jar
       - SERVER_PORT=8001
+
+      # New Relic agent will send data on https://<domain_of_cubeapm_server>:443
+      - NEW_RELIC_HOST=<domain_of_cubeapm_server>
+      - NEW_RELIC_APP_NAME=cube_sample_java_spring_boot_newrelic_2
+      - NEW_RELIC_LICENSE_KEY=ABC4567890ABC4567890ABC4567890ABC4567890
+
+      # Send logs to CubeAPM
+      # https://docs.newrelic.com/docs/logs/logs-context/java-configure-logs-context-all/
+      - NEW_RELIC_APPLICATION_LOGGING_ENABLED=true
+      - NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED=true
+      - NEW_RELIC_APPLICATION_LOGGING_LOCAL_DECORATING_ENABLED=true
+
+      # Print New Relic agent logs on screen
+      # - NEW_RELIC_LOG=stdout
+      # Set New Relic agent log level to debug if needed to see detailed logs
+      # - NEW_RELIC_LOG_LEVEL=debug
     ports:
       - "8001:8001"
     depends_on:
