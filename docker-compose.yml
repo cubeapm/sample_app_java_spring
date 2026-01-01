@@ -17,6 +17,7 @@ services:
       - NEW_RELIC_APPLICATION_LOGGING_ENABLED=true
       - NEW_RELIC_APPLICATION_LOGGING_FORWARDING_ENABLED=true
       - NEW_RELIC_APPLICATION_LOGGING_LOCAL_DECORATING_ENABLED=true
+      - NEW_RELIC_JMX_ENABLED=true
 
       # Print New Relic agent logs on screen
       # - NEW_RELIC_LOG=stdout

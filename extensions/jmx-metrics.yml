@@ -1,0 +1,24 @@
+name: JVMMetrics
+version: 1.0
+enabled: true
+jmx:
+  - object_name: java.lang:type=Memory
+    metrics:
+      - attributes: HeapMemoryUsage.used,HeapMemoryUsage.committed,HeapMemoryUsage.max,NonHeapMemoryUsage.used
+        type: simple
+  - object_name: java.lang:type=Threading
+    metrics:
+      - attributes: ThreadCount,PeakThreadCount
+        type: simple
+  - object_name: java.lang:type=GarbageCollector,name=*
+    metrics:
+      - attributes: CollectionCount,CollectionTime
+        type: monotonically_increasing
+  - object_name: java.lang:type=Runtime
+    metrics:
+      - attributes: Uptime
+        type: monotonically_increasing
+  - object_name: java.lang:type=OperatingSystem
+    metrics:
+      - attributes: ProcessCpuLoad,SystemCpuLoad,AvailableProcessors
+        type: simple
