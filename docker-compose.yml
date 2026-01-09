@@ -5,9 +5,10 @@ services:
       context: .
     container_name: cube_java_springboot
     environment:
-      - JAVA_TOOL_OPTIONS=-javaagent:./newrelic-agent.jar
+      - JAVA_TOOL_OPTIONS=-javaagent:/java/newrelic-agent.jar
 
       # New Relic agent will send data on https://<domain_of_cubeapm_server>:443
+      - NEW_RELIC_HOST=<domain_of_cubeapm_server>
       - NEW_RELIC_APP_NAME=cube_sample_java_spring_boot_newrelic
       - NEW_RELIC_LICENSE_KEY=ABC4567890ABC4567890ABC4567890ABC4567890
 
