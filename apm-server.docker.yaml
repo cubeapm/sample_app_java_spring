@@ -1,0 +1,6 @@
+apm-server:
+  host: "0.0.0.0:8200"
+output.kafka:
+  enabled: true
+  hosts: ["kafka:9092"]
+  topic: beats

@@ -1,0 +1,36 @@
+api:
+  enabled: true
+  address: 0.0.0.0:8686
+
+sources:
+  kafka:
+    type: kafka
+    bootstrap_servers: kafka:9092
+    group_id: consumer-group-name
+    topics:
+      - beats
+    decoding:
+      codec: json
+
+  vector_logs:
+    type: internal_logs
+
+sinks:
+  elasticsearch:
+    type: elasticsearch
+    inputs:
+      - kafka
+    endpoints:
+      - https://c37a-103-100-219-14.ngrok-free.app:443/api/apm/elasticsearch/
+    mode: bulk
+    api_version: v8
+    compression: gzip
+    healthcheck:
+      enabled: false
+
+  console:
+    type: console
+    inputs:
+      - vector_logs
+    encoding:
+      codec: text
