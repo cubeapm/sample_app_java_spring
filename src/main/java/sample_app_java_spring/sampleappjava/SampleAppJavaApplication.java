@@ -10,6 +10,9 @@ import org.springframework.cache.annotation.EnableCaching;
 public class SampleAppJavaApplication {
 
 	public static void main(String[] args) {
+
+		OtelMetrics.init();
+
 		SpringApplication.run(SampleAppJavaApplication.class, args);
 	}
 

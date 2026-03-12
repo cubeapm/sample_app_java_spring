@@ -1,5 +1,8 @@
 package sample_app_java_spring.sampleappjava;
 
+import io.opentelemetry.api.common.AttributeKey;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.LongCounter;
 // import org.apache.kafka.clients.producer.Producer;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,9 +28,13 @@ public class app {
 
     private static final Logger logger = LoggerFactory.getLogger(app.class);
 
+    private static final LongCounter homeCallsCounter = OtelMetrics.meter().counterBuilder("home_calls").build();
 
     @RequestMapping("/")
     public String index(){
+        homeCallsCounter.add(1);
+        // homeCallsCounter.add(1, Attributes.of(
+        // AttributeKey.stringKey("my_key"), "my_value"));
         logger.info("Index endpoint called");
         return "Hello";
     }
