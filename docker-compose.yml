@@ -10,7 +10,11 @@ services:
       - DD_SERVICE=cube_sample_java_spring_boot_datadog
 
       # Send data to Datadog Agent
+      # Comment this if you are using datadog tracer to send data to CubeAPM.
       - DD_AGENT_HOST=datadog-agent
+
+      # Send traces to CubeAPM without Datadog Agent.
+      # - DD_TRACE_AGENT_URL=http://host.docker.internal:3130
 
       # Enable runtime metrics 
       - DD_RUNTIME_METRICS_ENABLED=true 
