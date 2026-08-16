@@ -23,13 +23,14 @@ dotnet|8004|${DOTNET_BASE}"
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/stack.sh <start|stop|down|status|catalog>
+Usage: ./scripts/stack.sh <start|stop|down|status|catalog|restart-agent>
 
   start    Detached compose up, wait until all 5 apps are HTTP-ready
   stop     docker compose stop (keeps images/volumes; fast restart)
   down     docker compose down
   status   compose ps + HTTP probes
   catalog  languages, ports, endpoints, APM names
+  restart-agent  force-recreate datadog-agent (reload env)
 EOF
 }
 
@@ -178,6 +179,10 @@ cmd_status() {
   return 1
 }
 
+cmd_restart_agent() {
+  "$ROOT/scripts/dd-agent-config.sh" restart
+}
+
 cmd_catalog() {
   cat <<EOF
 Languages / apps (DD_ENV=dd-ext2):
@@ -226,6 +231,7 @@ main() {
     down) cmd_down ;;
     status) cmd_status ;;
     catalog) cmd_catalog ;;
+    restart-agent) cmd_restart_agent ;;
     -h|--help|help|"") usage; [ -n "$cmd" ];;
     *) echo "Unknown command: $cmd"; usage; return 1 ;;
   esac

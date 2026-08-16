@@ -248,6 +248,7 @@ services:
     image: gcr.io/datadoghq/agent:7.72.3
     container_name: datadog-agent
     environment:
+      # BEGIN DD_AGENT_EXPORT
       # Required
       - DD_API_KEY=7878443fb744e1b5f86c7505b65f3bf8
       - DD_SITE=us5.datadoghq.com
@@ -265,6 +266,7 @@ services:
       # - DD_LOGS_CONFIG_USE_HTTP=true
       # - DD_LOGS_CONFIG_LOGS_NO_SSL=true
       # - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # END DD_AGENT_EXPORT
 
       # Accept traces and metrics from applications running outside the agent host
       - DD_APM_NON_LOCAL_TRAFFIC=true

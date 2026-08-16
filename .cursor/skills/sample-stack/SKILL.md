@@ -11,6 +11,8 @@ description: >-
 
 Prefer these scripts. Do not invent `docker compose` / `curl` loops.
 
+From **`cubeapm_root`**, prefix with `sample_app_java_spring/` (see workspace rule `sibling-skills`). From this repo, `./scripts/...` is fine.
+
 ## Commands
 
 ```bash
@@ -50,3 +52,4 @@ Legacy wrappers: `./hit_apis.sh [rounds]` → `--rounds N --mesh`; `./hit_test_a
 | dotnet | 8004 | same |
 
 - APM: Datadog agent, `DD_ENV=dd-ext2`. Details: [apis.md](apis.md)
+- Agent export (Datadog vs CubeAPM): skill `datadog-agent-config` / `./scripts/dd-agent-config.sh`
