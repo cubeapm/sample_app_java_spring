@@ -16,3 +16,20 @@ target/
 
 ### VS Code ###
 .vscode/
+
+# Local APM agent jars (downloaded for Docker builds)
+dd-java-agent.jar
+
+# .NET
+dotnet-service/bin/
+dotnet-service/obj/
+
+# Node / PHP / Python
+node-service/node_modules/
+php-service/vendor/
+python-service/__pycache__/
+*.pyc
+
+### Agent stack runtime ###
+tmp/
+*.pid

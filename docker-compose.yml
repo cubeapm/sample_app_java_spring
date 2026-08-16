@@ -12,12 +12,16 @@ services:
       # Send data to Datadog Agent
       - DD_AGENT_HOST=datadog-agent
 
-      # Enable runtime metrics 
-      - DD_RUNTIME_METRICS_ENABLED=true 
-      - DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED=true 
+      # Prefer inferred services over integration service-name overrides
+      - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      # Mark HTTP client 4xx+5xx as errors (Java default is only 400-499)
+      - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
 
-      # optional settings
-      # - DD_ENV=myenv
+      # Enable runtime metrics
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED=true
+
+      - DD_ENV=dd-ext2
       # - DD_VERSION=1.2.3
       # - DD_TAGS=mykey1:myvalue1,mykey2:myvalue2
 
@@ -27,9 +31,217 @@ services:
       # - DD_TRACE_DEBUG=true
     ports:
       - "8000:8000"
+    networks:
+      default:
+        aliases:
+          - java-host
     depends_on:
       - mysql
+      - postgres
       - redis
+      - kafka
+      - rabbitmq
+      - node
+      - python
+      - php
+      - dotnet
+      - datadog-agent
+    restart: always
+
+  node:
+    build:
+      context: ./node-service
+    container_name: cube_node_express
+    environment:
+      - DD_SERVICE=cube_sample_node_express_datadog
+      - DD_ENV=dd-ext2
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
+      - DD_LOGS_INJECTION=true
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - MYSQL_HOST=mysql-host
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=test
+      - POSTGRES_HOST=postgres-host
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DATABASE=test
+      - REDIS_HOST=redis-host
+      - REDIS_PORT=6379
+      - KAFKA_BROKERS=kafka-host:9092
+      - KAFKA_TOPICS=topic-1,topic-2
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq-host:5672
+      - RABBITMQ_QUEUES=topic-1,topic-2
+      - JAVA_SERVICE_URL=http://java-host:8000
+      - PYTHON_SERVICE_URL=http://python-host:8002
+      - PHP_SERVICE_URL=http://php-host:8003
+      - DOTNET_SERVICE_URL=http://dotnet-host:8004
+      - PORT=8001
+    ports:
+      - "8001:8001"
+    networks:
+      default:
+        aliases:
+          - node-host
+    depends_on:
+      - mysql
+      - postgres
+      - redis
+      - kafka
+      - rabbitmq
+      - datadog-agent
+    restart: always
+
+  python:
+    build:
+      context: ./python-service
+    container_name: cube_python_flask
+    environment:
+      - DD_SERVICE=cube_sample_python_flask_datadog
+      - DD_ENV=dd-ext2
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
+      - DD_LOGS_INJECTION=true
+      - DD_RUNTIME_METRICS_ENABLED=true
+      # kombu is not patched by default (conflicts with Celery); required for RabbitMQ spans
+      - DD_PATCH_MODULES=kombu:true
+      - DD_KAFKA_PROPAGATION_ENABLED=true
+      - MYSQL_HOST=mysql-host
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=test
+      - POSTGRES_HOST=postgres-host
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DATABASE=test
+      - REDIS_HOST=redis-host
+      - REDIS_PORT=6379
+      - JAVA_SERVICE_URL=http://java-host:8000
+      - NODE_SERVICE_URL=http://node-host:8001
+      - PHP_SERVICE_URL=http://php-host:8003
+      - DOTNET_SERVICE_URL=http://dotnet-host:8004
+      - KAFKA_BROKERS=kafka-host:9092
+      - KAFKA_TOPICS=topic-1,topic-2
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq-host:5672
+      - RABBITMQ_QUEUES=topic-1,topic-2
+    ports:
+      - "8002:8002"
+    networks:
+      default:
+        aliases:
+          - python-host
+    depends_on:
+      - mysql
+      - postgres
+      - redis
+      - kafka
+      - rabbitmq
+      - datadog-agent
+    restart: always
+
+  php:
+    platform: linux/amd64
+    build:
+      context: ./php-service
+    container_name: cube_php
+    environment:
+      - DD_SERVICE=cube_sample_php_datadog
+      - DD_ENV=dd-ext2
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
+      - DD_TRACE_CLI_ENABLED=true
+      - DD_TRACE_AUTO_FLUSH_ENABLED=true
+      - DD_TRACE_GENERATE_ROOT_SPAN=true
+      - DD_LOGS_INJECTION=true
+      - MYSQL_HOST=mysql-host
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=test
+      - POSTGRES_HOST=postgres-host
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DATABASE=test
+      - REDIS_HOST=redis-host
+      - REDIS_PORT=6379
+      - JAVA_SERVICE_URL=http://java-host:8000
+      - NODE_SERVICE_URL=http://node-host:8001
+      - PYTHON_SERVICE_URL=http://python-host:8002
+      - DOTNET_SERVICE_URL=http://dotnet-host:8004
+      - KAFKA_BROKERS=kafka-host:9092
+      - KAFKA_TOPICS=topic-1,topic-2
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq-host:5672
+      - RABBITMQ_QUEUES=topic-1,topic-2
+    ports:
+      - "8003:8003"
+    networks:
+      default:
+        aliases:
+          - php-host
+    depends_on:
+      - mysql
+      - postgres
+      - redis
+      - kafka
+      - rabbitmq
+      - datadog-agent
+    restart: always
+
+  dotnet:
+    build:
+      context: ./dotnet-service
+    container_name: cube_dotnet_aspnet
+    environment:
+      - DD_SERVICE=cube_sample_dotnet_aspnet_datadog
+      - DD_ENV=dd-ext2
+      - DD_AGENT_HOST=datadog-agent
+      - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
+      - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
+      - DD_LOGS_INJECTION=true
+      - DD_RUNTIME_METRICS_ENABLED=true
+      - MYSQL_HOST=mysql-host
+      - MYSQL_PORT=3306
+      - MYSQL_USER=root
+      - MYSQL_PASSWORD=root
+      - MYSQL_DATABASE=test
+      - POSTGRES_HOST=postgres-host
+      - POSTGRES_PORT=5432
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DATABASE=test
+      - REDIS_HOST=redis-host
+      - REDIS_PORT=6379
+      - JAVA_SERVICE_URL=http://java-host:8000
+      - NODE_SERVICE_URL=http://node-host:8001
+      - PYTHON_SERVICE_URL=http://python-host:8002
+      - PHP_SERVICE_URL=http://php-host:8003
+      - KAFKA_BROKERS=kafka-host:9092
+      - KAFKA_TOPICS=topic-1,topic-2
+      - RABBITMQ_URL=amqp://guest:guest@rabbitmq-host:5672
+      - RABBITMQ_QUEUES=topic-1,topic-2
+      - ASPNETCORE_URLS=http://0.0.0.0:8004
+    ports:
+      - "8004:8004"
+    networks:
+      default:
+        aliases:
+          - dotnet-host
+    depends_on:
+      - mysql
+      - postgres
+      - redis
+      - kafka
+      - rabbitmq
+      - datadog-agent
     restart: always
 
   datadog-agent:
@@ -37,19 +249,22 @@ services:
     container_name: datadog-agent
     environment:
       # Required
-      - DD_API_KEY=<your_datadog_api_key>
+      - DD_API_KEY=7878443fb744e1b5f86c7505b65f3bf8
+      - DD_SITE=us5.datadoghq.com
+      - DD_ADDITIONAL_ENDPOINTS={"https://clicker-scenic-gallon.ngrok-free.dev":["1234"]}
+      - DD_APM_ADDITIONAL_ENDPOINTS={"https://clicker-scenic-gallon.ngrok-free.dev":["1234"]}
 
       # send metrics to CubeAPM
-      - DD_DD_URL=http://host.docker.internal:3130
+      # - DD_DD_URL=http://host.docker.internal:3130
       # send traces to CubeAPM
-      - DD_APM_DD_URL=http://host.docker.internal:3130
+      # - DD_APM_DD_URL=http://host.docker.internal:3130
       # send logs to CubeAPM
-      - DD_LOGS_CONFIG_LOGS_DD_URL=http://host.docker.internal:3130
-      - DD_LOGS_ENABLED=true
-      - DD_LOGS_INJECTION=true
-      - DD_LOGS_CONFIG_USE_HTTP=true
-      - DD_LOGS_CONFIG_LOGS_NO_SSL=true
-      - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # - DD_LOGS_CONFIG_LOGS_DD_URL=http://host.docker.internal:3130
+      # - DD_LOGS_ENABLED=true
+      # - DD_LOGS_INJECTION=true
+      # - DD_LOGS_CONFIG_USE_HTTP=true
+      # - DD_LOGS_CONFIG_LOGS_NO_SSL=true
+      # - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
 
       # Accept traces and metrics from applications running outside the agent host
       - DD_APM_NON_LOCAL_TRAFFIC=true
@@ -58,6 +273,8 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock:ro
       - /proc/:/host/proc/:ro
       - /sys/fs/cgroup/:/host/sys/fs/cgroup:ro
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
 
   mysql:
     image: mysql:8.0
@@ -69,10 +286,78 @@ services:
       - cube_java_springboot_mysql:/var/lib/mysql
     ports:
       - "3306:3306"
+    networks:
+      default:
+        aliases:
+          - mysql-host
+
+  postgres:
+    image: postgres:16-alpine
+    container_name: cube_java_springboot_postgres
+    environment:
+      - POSTGRES_USER=root
+      - POSTGRES_PASSWORD=root
+      - POSTGRES_DB=test
+    volumes:
+      - cube_java_springboot_postgres:/var/lib/postgresql/data
+    ports:
+      - "5432:5432"
+    networks:
+      default:
+        aliases:
+          - postgres-host
 
   redis:
     image: redis:alpine3.18
     container_name: cube_java_springboot_redis
+    networks:
+      default:
+        aliases:
+          - redis-host
+
+  kafka:
+    image: confluentinc/cp-kafka:7.5.0
+    container_name: cube_java_springboot_kafka
+    ports:
+      - "9092:9092"
+    environment:
+      KAFKA_BROKER_ID: 1
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,PLAINTEXT:PLAINTEXT,PLAINTEXT_HOST:PLAINTEXT
+      KAFKA_ADVERTISED_LISTENERS: PLAINTEXT://kafka:29092,PLAINTEXT_HOST://kafka-host:9092
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_GROUP_INITIAL_REBALANCE_DELAY_MS: 0
+      KAFKA_PROCESS_ROLES: broker,controller
+      KAFKA_NODE_ID: 1
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:29093
+      KAFKA_LISTENERS: PLAINTEXT://kafka:29092,CONTROLLER://kafka:29093,PLAINTEXT_HOST://0.0.0.0:9092
+      KAFKA_INTER_BROKER_LISTENER_NAME: PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_LOG_DIRS: /var/lib/kafka/data
+      CLUSTER_ID: MkU3OEVBNTcwNTJENDM2Qk
+    volumes:
+      - cube_java_springboot_kafka:/var/lib/kafka/data
+    networks:
+      default:
+        aliases:
+          - kafka-host
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: cube_java_springboot_rabbitmq
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      - RABBITMQ_DEFAULT_USER=guest
+      - RABBITMQ_DEFAULT_PASS=guest
+    networks:
+      default:
+        aliases:
+          - rabbitmq-host
 
 volumes:
   cube_java_springboot_mysql:
+  cube_java_springboot_postgres:
+  cube_java_springboot_kafka:

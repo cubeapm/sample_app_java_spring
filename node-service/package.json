@@ -1,0 +1,18 @@
+{
+  "name": "cube-node-express-datadog",
+  "version": "1.0.0",
+  "private": true,
+  "main": "server.js",
+  "scripts": {
+    "start": "node -r dd-trace/init server.js"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.5",
+    "dd-trace": "^5.36.0",
+    "express": "^4.21.2",
+    "ioredis": "^5.4.2",
+    "kafkajs": "^2.2.4",
+    "mysql2": "^3.12.0",
+    "pg": "^8.13.1"
+  }
+}
