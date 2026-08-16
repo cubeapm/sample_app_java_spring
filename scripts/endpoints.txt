@@ -1,0 +1,9 @@
+# method|path|expect|note
+# Single source of truth for catalog + traffic defaults.
+GET|/|200|index
+GET|/param/sample|200|path param
+GET|/api|200|outbound HTTP to self
+GET|/redis|200|redis cache
+GET|/all|200|mysql list users
+POST|/mysql/add?name=agent&email=agent@example.com|200|mysql insert
+GET|/exception|500|expected error

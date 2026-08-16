@@ -16,3 +16,7 @@ target/
 
 ### VS Code ###
 .vscode/
+
+### Agent stack runtime ###
+tmp/
+*.pid
