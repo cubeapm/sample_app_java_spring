@@ -54,6 +54,35 @@ is_cloud() {
   esac
 }
 
+# Daemon answers on the socket (root or current user).
+daemon_up() {
+  command -v docker >/dev/null 2>&1 || return 1
+  docker info >/dev/null 2>&1 && return 0
+  as_root docker info >/dev/null 2>&1
+}
+
+# stack.sh runs docker as the current user in this same process. usermod
+# does not affect the current login, so on cloud VMs open the socket.
+fix_cli_access() {
+  local user
+  user="$(id -un)"
+  as_root groupadd -f docker >/dev/null 2>&1 || true
+  as_root usermod -aG docker "$user" 2>/dev/null || true
+  if [ -S /var/run/docker.sock ]; then
+    as_root chown root:docker /var/run/docker.sock 2>/dev/null || true
+    as_root chmod 660 /var/run/docker.sock 2>/dev/null || true
+  fi
+  if docker info >/dev/null 2>&1; then
+    return 0
+  fi
+  if [ -S /var/run/docker.sock ]; then
+    echo "docker.sock not usable as ${user}; chmod 666 for this VM"
+    as_root chmod 666 /var/run/docker.sock
+  fi
+  docker info >/dev/null 2>&1
+}
+
+# Unprivileged CLI — what compose in stack.sh needs.
 docker_ok() {
   command -v docker >/dev/null 2>&1 && docker info >/dev/null 2>&1
 }
@@ -88,11 +117,15 @@ cmd_status() {
   else
     echo "docker: missing"
   fi
-  if docker_ok; then echo "daemon: up"; else echo "daemon: down"; fi
+  if docker_ok; then echo "daemon: up (user)"; elif daemon_up; then echo "daemon: up (root only)"; else echo "daemon: down"; fi
   if compose_ok; then echo "compose: ok"; else echo "compose: missing"; fi
   echo "ip_forward: $(cat /proc/sys/net/ipv4/ip_forward 2>/dev/null || echo n/a)"
   echo "forward_policy: $(forward_policy || echo n/a)"
-  echo "docker.sock: $( [ -S /var/run/docker.sock ] && echo yes || echo no )"
+  if [ -S /var/run/docker.sock ]; then
+    echo "docker.sock: $(ls -l /var/run/docker.sock | awk '{print $1,$3,$4}')"
+  else
+    echo "docker.sock: no"
+  fi
 }
 
 write_daemon_json() {
@@ -118,12 +151,30 @@ kill_manual_dockerd() {
   if [ -f "$DOCKERD_PID_FILE" ]; then
     local pid
     pid=$(cat "$DOCKERD_PID_FILE" 2>/dev/null || true)
-    if [ -n "${pid:-}" ] && kill -0 "$pid" 2>/dev/null; then
+    if [ -n "${pid:-}" ]; then
       as_root kill "$pid" 2>/dev/null || true
       sleep 1
     fi
-    rm -f "$DOCKERD_PID_FILE"
+    as_root rm -f "$DOCKERD_PID_FILE"
   fi
+}
+
+wait_dockerd_ready() {
+  local driver="$1"
+  local i
+  for i in $(seq 1 30); do
+    if daemon_up; then
+      fix_cli_access || true
+      if docker_ok; then
+        echo "dockerd ready (driver=${driver})"
+        return 0
+      fi
+    fi
+    sleep 1
+  done
+  echo "ERROR: dockerd did not become ready (driver=${driver}). last log:"
+  tail -n 40 "$DOCKERD_LOG" 2>/dev/null || true
+  return 1
 }
 
 start_dockerd_manual() {
@@ -132,17 +183,7 @@ start_dockerd_manual() {
   as_root mkdir -p /var/lib/docker /var/run
   echo "starting dockerd (storage-driver=${driver})..."
   as_root sh -c "nohup dockerd --host=unix:///var/run/docker.sock --exec-opt native.cgroupdriver=cgroupfs >'$DOCKERD_LOG' 2>&1 & echo \$! >'$DOCKERD_PID_FILE'"
-  local i
-  for i in $(seq 1 30); do
-    if docker_ok; then
-      echo "dockerd ready (driver=${driver})"
-      return 0
-    fi
-    sleep 1
-  done
-  echo "ERROR: dockerd did not become ready (driver=${driver}). last log:"
-  tail -n 40 "$DOCKERD_LOG" 2>/dev/null || true
-  return 1
+  wait_dockerd_ready "$driver"
 }
 
 install_docker() {
@@ -165,21 +206,28 @@ install_docker() {
 }
 
 start_daemon() {
-  if docker_ok; then
-    echo "daemon already up"
-    return 0
+  if daemon_up; then
+    fix_cli_access || true
+    if docker_ok; then
+      echo "daemon already up"
+      return 0
+    fi
   fi
   if systemd_usable; then
     echo "starting docker via systemd"
     as_root systemctl start docker || true
     local i
     for i in $(seq 1 20); do
-      docker_ok && return 0
+      if daemon_up; then
+        fix_cli_access || true
+        docker_ok && return 0
+      fi
       sleep 1
     done
   fi
-  if docker_ok; then
-    return 0
+  if daemon_up; then
+    fix_cli_access || true
+    docker_ok && return 0
   fi
   if ! command -v dockerd >/dev/null 2>&1; then
     echo "ERROR: dockerd binary not found"
