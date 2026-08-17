@@ -46,7 +46,7 @@ Legacy wrappers: `./hit_apis.sh [rounds]` → `--rounds N --mesh`; `./hit_test_a
 
 ## Cloud agents
 
-Cursor cloud VMs are nested Linux without Docker. `stack.sh start` installs/starts dockerd and opens bridge FORWARD/NAT so compose services share one network and can reach the internet.
+Cursor cloud VMs are nested Linux without Docker. `stack.sh start` installs/starts dockerd, opens the docker socket for the current user, and turns **off** `bridge-nf-call-iptables` so compose containers can reach each other (ICC) and the internet.
 
 `host.docker.internal` on a cloud VM is **that VM**, not the user's laptop CubeAPM.
 

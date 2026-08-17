@@ -244,21 +244,28 @@ start_daemon() {
 }
 
 cmd_net() {
-  echo "applying container forwarding/NAT..."
+  echo "applying container forwarding/NAT (bridge-nf off so ICC is L2)..."
   as_root sysctl -w net.ipv4.ip_forward=1 >/dev/null
   as_root sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>/dev/null || true
-  as_root modprobe br_netfilter 2>/dev/null || true
-  as_root sysctl -w net.bridge.bridge-nf-call-iptables=1 >/dev/null 2>/dev/null || true
-  as_root sysctl -w net.bridge.bridge-nf-call-ip6tables=1 >/dev/null 2>/dev/null || true
+  # Nested Docker: sending bridge frames through iptables breaks ICC even when
+  # FORWARD is ACCEPT. Switch on the linux bridge instead.
+  as_root sysctl -w net.bridge.bridge-nf-call-iptables=0 >/dev/null 2>/dev/null || true
+  as_root sysctl -w net.bridge.bridge-nf-call-ip6tables=0 >/dev/null 2>/dev/null || true
   if ! command -v iptables >/dev/null 2>&1; then
     echo "ERROR: iptables not found"
     return 1
   fi
   as_root iptables -P FORWARD ACCEPT
   as_root iptables -C FORWARD -j ACCEPT 2>/dev/null || as_root iptables -I FORWARD 1 -j ACCEPT
+  local chain
+  for chain in DOCKER-USER DOCKER-ISOLATION-STAGE-1 DOCKER-ISOLATION-STAGE-2; do
+    as_root iptables -C "$chain" -j ACCEPT 2>/dev/null \
+      || as_root iptables -I "$chain" 1 -j ACCEPT 2>/dev/null \
+      || true
+  done
   as_root iptables -t nat -C POSTROUTING -s 172.16.0.0/12 -j MASQUERADE 2>/dev/null \
     || as_root iptables -t nat -A POSTROUTING -s 172.16.0.0/12 -j MASQUERADE
-  echo "ip_forward=$(cat /proc/sys/net/ipv4/ip_forward) forward_policy=$(forward_policy)"
+  echo "ip_forward=$(cat /proc/sys/net/ipv4/ip_forward) forward_policy=$(forward_policy) bridge-nf=$(cat /proc/sys/net/bridge/bridge-nf-call-iptables 2>/dev/null || echo n/a)"
 }
 
 cleanup_verify() {
@@ -273,13 +280,22 @@ cmd_verify() {
   fi
   cleanup_verify
   docker network create "$VERIFY_NET_NAME" >/dev/null
-  docker run -d --name "$VERIFY_CTR" --network "$VERIFY_NET_NAME" alpine:3.20 sleep 90 >/dev/null
-  local icc=0 egress=0
-  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 ping -c 2 -W 3 "$VERIFY_CTR" >/dev/null 2>&1; then
-    echo "verify icc: ok"
+  docker run -d --name "$VERIFY_CTR" --network "$VERIFY_NET_NAME" alpine:3.20 \
+    sh -c 'echo ok > /tmp/index.html && exec httpd -f -p 8080 -h /tmp' >/dev/null
+  local icc=0 egress=0 ip
+  ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$VERIFY_CTR" 2>/dev/null || true)
+  echo "verify icc target: name=$VERIFY_CTR ip=${ip:-unknown}"
+  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 ping -c 1 -W 2 "$VERIFY_CTR" >/dev/null 2>&1; then
+    echo "verify icc ping: ok"
+  else
+    echo "verify icc ping: FAIL"
+  fi
+  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O- --timeout=5 "http://${VERIFY_CTR}:8080/" 2>/dev/null | grep -q ok \
+    || { [ -n "${ip:-}" ] && docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O- --timeout=5 "http://${ip}:8080/" 2>/dev/null | grep -q ok; }; then
+    echo "verify icc tcp: ok"
     icc=1
   else
-    echo "verify icc: FAIL (containers cannot ping each other)"
+    echo "verify icc tcp: FAIL (containers cannot reach each other on the compose bridge)"
   fi
   if docker run --rm alpine:3.20 ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1 \
     || docker run --rm alpine:3.20 wget -q -O /dev/null --timeout=5 https://example.com >/dev/null 2>&1; then
@@ -306,6 +322,10 @@ cmd_ensure() {
   if ! compose_ok; then
     echo "ERROR: docker compose plugin missing"
     return 1
+  fi
+
+  if is_cloud; then
+    cmd_net || return 1
   fi
 
   if cmd_verify; then
