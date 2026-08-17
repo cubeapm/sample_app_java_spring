@@ -216,7 +216,7 @@ intake_url() {
 }
 
 cmd_probe() {
-  local url code
+  local url code out
   url=$(intake_url)
   if [ -z "$url" ]; then
     echo "ERROR: no CubeAPM URL in export block (DD_DD_URL / ADDITIONAL_ENDPOINTS)"
@@ -226,12 +226,18 @@ cmd_probe() {
     echo "ERROR: docker not found on PATH"
     return 1
   fi
-  echo "probe: POST ${url}/intake/ from datadog-agent (max 25s)"
-  code=$(docker exec datadog-agent curl -sk -o /dev/null -w '%{http_code}' --max-time 25 \
+  if ! docker exec datadog-agent sh -c 'command -v curl >/dev/null 2>&1'; then
+    echo "ERROR: curl missing inside datadog-agent"
+    return 1
+  fi
+  echo "probe: POST ${url}/intake/ from datadog-agent (IPv4, max 25s)"
+  out=$(docker exec datadog-agent curl -4 -sk -o /dev/null -w '%{http_code}' --max-time 25 \
     -X POST "${url}/intake/" \
     -H 'Content-Type: application/json' \
     -H 'DD-API-KEY: 1234' \
-    --data '{}' 2>/dev/null) || true
+    --data '{}' 2>&1) || true
+  echo "probe curl: $out"
+  code=$(echo "$out" | tail -n 1 | tr -cd '0-9')
   if [ -z "$code" ]; then
     code=000
   fi
@@ -270,7 +276,7 @@ apply_and_maybe_restart() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    show|dual|cubeapm|restart|probe) MODE="$1"; shift ;;
+    show|dual|cubeapm|restart|probe|url) MODE="$1"; shift ;;
     --url) URL="${2:-}"; shift 2 ;;
     --api-key) API_KEY="${2:-}"; shift 2 ;;
     --site) SITE="${2:-}"; shift 2 ;;
@@ -285,6 +291,7 @@ case "$MODE" in
   show) cmd_show ;;
   restart) cmd_restart ;;
   probe) cmd_probe ;;
+  url) intake_url ;;
   dual)
     require_url || exit 1
     [ -n "$API_KEY" ] || { echo "ERROR: dual requires --api-key (Datadog API key)"; exit 1; }

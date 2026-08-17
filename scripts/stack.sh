@@ -127,6 +127,29 @@ wait_apps() {
   return 1
 }
 
+probe_ingest() {
+  if "$ROOT/scripts/dd-agent-config.sh" probe; then
+    return 0
+  fi
+  local url http extra=()
+  url=$("$ROOT/scripts/dd-agent-config.sh" url)
+  case "$url" in
+    https://*)
+      http="http://${url#https://}"
+      echo "HTTPS ingest TCP failed; retrying CubeAPM over HTTP ($http)"
+      if "$ROOT/scripts/cloud-docker.sh" is-cloud >/dev/null; then
+        extra+=(--require-public)
+      fi
+      "$ROOT/scripts/dd-agent-config.sh" cubeapm --url "$http" --no-restart "${extra[@]}" || return 1
+      "$ROOT/scripts/dd-agent-config.sh" restart || return 1
+      "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
+      ;;
+    *)
+      echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
+      ;;
+    esac
+}
+
 apply_cubeapm_url() {
   [ -n "${CUBEAPM_URL:-}" ] || return 0
   local extra=()
@@ -170,7 +193,7 @@ cmd_start() {
       "$ROOT/scripts/dd-agent-config.sh" restart || return 1
     fi
     print_status_table
-    "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
+    probe_ingest
     return 0
   fi
 
@@ -194,7 +217,7 @@ cmd_start() {
     return 1
   fi
   print_status_table
-  "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
+  probe_ingest
   return 0
 }
 

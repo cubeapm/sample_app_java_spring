@@ -139,7 +139,8 @@ write_daemon_json() {
   "iptables": true,
   "ip-forward": true,
   "ip-masq": true,
-  "icc": true
+  "icc": true,
+  "ipv6": false
 }
 EOF
   echo "wrote $DAEMON_JSON storage-driver=${driver}"
@@ -249,6 +250,8 @@ cmd_net() {
   echo "applying container forwarding/NAT (bridge-nf off so ICC is L2)..."
   as_root sysctl -w net.ipv4.ip_forward=1 >/dev/null
   as_root sysctl -w net.ipv4.conf.all.forwarding=1 >/dev/null 2>/dev/null || true
+  as_root sysctl -w net.ipv6.conf.all.disable_ipv6=1 >/dev/null 2>/dev/null || true
+  as_root sysctl -w net.ipv6.conf.default.disable_ipv6=1 >/dev/null 2>/dev/null || true
   # Nested Docker: sending bridge frames through iptables breaks ICC even when
   # FORWARD is ACCEPT. Switch on the linux bridge instead.
   as_root sysctl -w net.bridge.bridge-nf-call-iptables=0 >/dev/null 2>/dev/null || true
