@@ -33,6 +33,12 @@ KAFKA_ENV = {
     "KAFKA_CONTROLLER_QUORUM_VOTERS": "1@127.0.0.1:29093",
 }
 
+# Host net uses the VM hostname (e.g. cursor); Erlang needs a stable local node.
+RABBIT_ENV = {
+    "RABBITMQ_NODENAME": "rabbit@localhost",
+    "RABBITMQ_ERLANG_COOKIE": "cube-sample",
+}
+
 
 def yscalar(v):
     if v is None:
@@ -134,6 +140,13 @@ def main():
             envd = env_to_dict(svc.get("environment"))
             envd.update(KAFKA_ENV)
             svc["environment"] = envd
+        if name == "rabbitmq":
+            envd = env_to_dict(svc.get("environment"))
+            envd.update(RABBIT_ENV)
+            svc["environment"] = envd
+            # rabbitmq-diagnostics during boot races the cookie (eacces) and
+            # kills the broker. stack.sh already waits on AMQP publish.
+            svc.pop("healthcheck", None)
     cfg.pop("networks", None)
     os.makedirs(os.path.dirname(dest), exist_ok=True)
     header = (
