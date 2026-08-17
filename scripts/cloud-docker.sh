@@ -13,6 +13,7 @@ DOCKERD_LOG="${DOCKERD_LOG:-/tmp/cube-dockerd.log}"
 DOCKERD_PID_FILE="${DOCKERD_PID_FILE:-/tmp/cube-dockerd.pid}"
 VERIFY_NET_NAME="${VERIFY_NET_NAME:-cube-cloud-netcheck}"
 VERIFY_CTR="${VERIFY_CTR:-cube-cloud-netcheck-a}"
+CLOUD_NET_MODE_FILE="${CLOUD_NET_MODE_FILE:-$ROOT/tmp/cloud-net-mode}"
 
 usage() {
   cat <<'EOF'
@@ -126,6 +127,7 @@ cmd_status() {
   else
     echo "docker.sock: no"
   fi
+  echo "net_mode: $(cat "$CLOUD_NET_MODE_FILE" 2>/dev/null || echo unset)"
 }
 
 write_daemon_json() {
@@ -273,6 +275,12 @@ cleanup_verify() {
   docker network rm "$VERIFY_NET_NAME" >/dev/null 2>&1 || true
 }
 
+set_net_mode() {
+  mkdir -p "$(dirname "$CLOUD_NET_MODE_FILE")"
+  echo "$1" >"$CLOUD_NET_MODE_FILE"
+  echo "net_mode: $1 ($CLOUD_NET_MODE_FILE)"
+}
+
 cmd_verify() {
   if ! docker_ok; then
     echo "ERROR: docker daemon not up"
@@ -281,21 +289,33 @@ cmd_verify() {
   cleanup_verify
   docker network create "$VERIFY_NET_NAME" >/dev/null
   docker run -d --name "$VERIFY_CTR" --network "$VERIFY_NET_NAME" alpine:3.20 \
-    sh -c 'echo ok > /tmp/index.html && exec httpd -f -p 8080 -h /tmp' >/dev/null
-  local icc=0 egress=0 ip
-  ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$VERIFY_CTR" 2>/dev/null || true)
-  echo "verify icc target: name=$VERIFY_CTR ip=${ip:-unknown}"
-  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 ping -c 1 -W 2 "$VERIFY_CTR" >/dev/null 2>&1; then
-    echo "verify icc ping: ok"
-  else
+    sh -c 'while true; do printf "HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok" | nc -l -p 8080; done' >/dev/null
+  local icc=0 egress=0 ip i state
+  ip=""
+  for i in $(seq 1 15); do
+    state=$(docker inspect -f '{{.State.Status}}' "$VERIFY_CTR" 2>/dev/null || echo missing)
+    ip=$(docker inspect -f '{{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' "$VERIFY_CTR" 2>/dev/null || true)
+    if [ -n "$ip" ]; then
+      break
+    fi
+    sleep 1
+  done
+  echo "verify icc target: name=$VERIFY_CTR ip=${ip:-none} state=${state:-unknown}"
+  if [ -z "$ip" ]; then
     echo "verify icc ping: FAIL"
-  fi
-  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O- --timeout=5 "http://${VERIFY_CTR}:8080/" 2>/dev/null | grep -q ok \
-    || { [ -n "${ip:-}" ] && docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O- --timeout=5 "http://${ip}:8080/" 2>/dev/null | grep -q ok; }; then
-    echo "verify icc tcp: ok"
-    icc=1
+    echo "verify icc tcp: FAIL (no IP on user bridge — IPAM/veth broken)"
   else
-    echo "verify icc tcp: FAIL (containers cannot reach each other on the compose bridge)"
+    if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 ping -c 1 -W 2 "$ip" >/dev/null 2>&1; then
+      echo "verify icc ping: ok"
+    else
+      echo "verify icc ping: FAIL"
+    fi
+    if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O- --timeout=5 "http://${ip}:8080/" 2>/dev/null | grep -q ok; then
+      echo "verify icc tcp: ok"
+      icc=1
+    else
+      echo "verify icc tcp: FAIL (containers cannot reach each other on the compose bridge)"
+    fi
   fi
   if docker run --rm alpine:3.20 ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1 \
     || docker run --rm alpine:3.20 wget -q -O /dev/null --timeout=5 https://example.com >/dev/null 2>&1; then
@@ -329,6 +349,7 @@ cmd_ensure() {
   fi
 
   if cmd_verify; then
+    set_net_mode bridge
     echo "cloud-docker: ready"
     return 0
   fi
@@ -336,7 +357,14 @@ cmd_ensure() {
   echo "container networking broken; applying FORWARD/NAT"
   cmd_net || return 1
   if cmd_verify; then
+    set_net_mode bridge
     echo "cloud-docker: ready (after net fix)"
+    return 0
+  fi
+
+  if is_cloud; then
+    echo "user-bridge ICC still broken; falling back to host network (docker-compose.cloud.yml)"
+    set_net_mode host
     return 0
   fi
 

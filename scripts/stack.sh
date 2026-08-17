@@ -13,6 +13,7 @@ PHP_BASE="${PHP_BASE:-http://localhost:8003}"
 DOTNET_BASE="${DOTNET_BASE:-http://localhost:8004}"
 PROBE_PATH="${PROBE_PATH:-/external/1}"
 ENDPOINTS_FILE="${ENDPOINTS_FILE:-$ROOT/scripts/endpoints.txt}"
+CLOUD_NET_MODE_FILE="${CLOUD_NET_MODE_FILE:-$ROOT/tmp/cloud-net-mode}"
 
 # name|port|base_url
 APPS="java|8000|${JAVA_BASE}
@@ -140,8 +141,20 @@ ensure_runtime() {
   "$ROOT/scripts/cloud-docker.sh" ensure
 }
 
+apply_compose_file() {
+  local mode
+  mode=$(cat "$CLOUD_NET_MODE_FILE" 2>/dev/null || echo bridge)
+  if [ "$mode" = host ]; then
+    export COMPOSE_FILE="$ROOT/docker-compose.yml:$ROOT/docker-compose.cloud.yml"
+    echo "compose overlay: host network"
+  else
+    export COMPOSE_FILE="$ROOT/docker-compose.yml"
+  fi
+}
+
 cmd_start() {
   ensure_runtime || return 1
+  apply_compose_file
   if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found on PATH"
     return 1
@@ -184,6 +197,7 @@ cmd_start() {
 }
 
 cmd_stop() {
+  apply_compose_file
   if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found on PATH"
     return 1
@@ -193,6 +207,7 @@ cmd_stop() {
 }
 
 cmd_down() {
+  apply_compose_file
   if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found on PATH"
     return 1
@@ -202,6 +217,7 @@ cmd_down() {
 }
 
 cmd_status() {
+  apply_compose_file
   print_status_table
   if all_apps_ready; then
     echo "overall: ready"
@@ -212,6 +228,7 @@ cmd_status() {
 }
 
 cmd_restart_agent() {
+  apply_compose_file
   "$ROOT/scripts/dd-agent-config.sh" restart
 }
 

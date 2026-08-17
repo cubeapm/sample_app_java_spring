@@ -203,7 +203,11 @@ cmd_restart() {
     return 1
   fi
   echo "recreating datadog-agent (env reload)"
-  docker compose -f "$COMPOSE" up -d --force-recreate datadog-agent
+  if [ -n "${COMPOSE_FILE:-}" ]; then
+    docker compose up -d --force-recreate datadog-agent
+  else
+    docker compose -f "$COMPOSE" up -d --force-recreate datadog-agent
+  fi
   echo "datadog-agent recreated"
 }
 
