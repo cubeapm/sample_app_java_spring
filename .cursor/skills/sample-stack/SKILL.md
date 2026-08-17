@@ -46,7 +46,7 @@ Legacy wrappers: `./hit_apis.sh [rounds]` → `--rounds N --mesh`; `./hit_test_a
 
 ## Cloud agents
 
-If the compose user-bridge cannot assign IPs (nested ICC broken), `ensure` writes `tmp/cloud-net-mode=host` and `stack.sh start` applies `docker-compose.cloud.yml` (`network_mode: host` + `extra_hosts` so mysql-host/redis-host/etc. are 127.0.0.1).
+If the compose user-bridge cannot assign IPs (nested ICC broken), `ensure` writes `tmp/cloud-net-mode=host` and `stack.sh start` applies `docker-compose.cloud.yml` (`network_mode: host` + `extra_hosts` so mysql-host/redis-host/etc. are 127.0.0.1). Egress for CubeAPM must be tested on the **compose/user bridge** (where `datadog-agent` runs), not docker0.
 
 `host.docker.internal` on a cloud VM is **that VM**, not the user's laptop CubeAPM.
 

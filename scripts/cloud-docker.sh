@@ -262,14 +262,27 @@ cmd_net() {
   fi
   as_root iptables -P FORWARD ACCEPT
   as_root iptables -C FORWARD -j ACCEPT 2>/dev/null || as_root iptables -I FORWARD 1 -j ACCEPT
-  local chain
+  local chain iface
   for chain in DOCKER-USER DOCKER-ISOLATION-STAGE-1 DOCKER-ISOLATION-STAGE-2; do
     as_root iptables -C "$chain" -j ACCEPT 2>/dev/null \
       || as_root iptables -I "$chain" 1 -j ACCEPT 2>/dev/null \
       || true
   done
-  as_root iptables -t nat -C POSTROUTING -s 172.16.0.0/12 -j MASQUERADE 2>/dev/null \
-    || as_root iptables -t nat -A POSTROUTING -s 172.16.0.0/12 -j MASQUERADE
+  # User-defined compose bridges are often 192.168.x, not 172.16/12. NAT on the
+  # default-route iface so datadog-agent (compose network) can reach ngrok.
+  iface=$(ip route 2>/dev/null | awk '/^default/ {print $5; exit}')
+  if [ -n "${iface:-}" ]; then
+    as_root iptables -C FORWARD -i br+ -o "$iface" -j ACCEPT 2>/dev/null \
+      || as_root iptables -I FORWARD 1 -i br+ -o "$iface" -j ACCEPT
+    as_root iptables -t nat -C POSTROUTING -o "$iface" -j MASQUERADE 2>/dev/null \
+      || as_root iptables -t nat -A POSTROUTING -o "$iface" -j MASQUERADE
+    echo "masquerade: -o $iface"
+  fi
+  local cidr
+  for cidr in 10.0.0.0/8 172.16.0.0/12 192.168.0.0/16; do
+    as_root iptables -t nat -C POSTROUTING -s "$cidr" -j MASQUERADE 2>/dev/null \
+      || as_root iptables -t nat -A POSTROUTING -s "$cidr" -j MASQUERADE
+  done
   echo "ip_forward=$(cat /proc/sys/net/ipv4/ip_forward) forward_policy=$(forward_policy) bridge-nf=$(cat /proc/sys/net/bridge/bridge-nf-call-iptables 2>/dev/null || echo n/a)"
 }
 
@@ -320,12 +333,12 @@ cmd_verify() {
       echo "verify icc tcp: FAIL (containers cannot reach each other on the compose bridge)"
     fi
   fi
-  if docker run --rm alpine:3.20 ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1 \
-    || docker run --rm alpine:3.20 wget -q -O /dev/null --timeout=5 https://example.com >/dev/null 2>&1; then
-    echo "verify egress: ok"
+  if docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 ping -c 2 -W 3 1.1.1.1 >/dev/null 2>&1 \
+    || docker run --rm --network "$VERIFY_NET_NAME" alpine:3.20 wget -q -O /dev/null --timeout=5 https://example.com >/dev/null 2>&1; then
+    echo "verify egress (user bridge): ok"
     egress=1
   else
-    echo "verify egress: FAIL (containers cannot reach the internet / ngrok)"
+    echo "verify egress (user bridge): FAIL (compose-network NAT; docker0 GET can still work)"
   fi
   cleanup_verify
   if [ "$icc" -eq 1 ] && [ "$egress" -eq 1 ]; then
