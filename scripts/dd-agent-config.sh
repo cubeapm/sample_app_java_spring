@@ -16,13 +16,14 @@ URL=""
 API_KEY=""
 SITE="$DEFAULT_SITE"
 DO_RESTART=1
+REQUIRE_PUBLIC=0
 
 usage() {
   cat <<'EOF'
 Usage:
   ./scripts/dd-agent-config.sh show
-  ./scripts/dd-agent-config.sh dual --url URL --api-key KEY [--site us5.datadoghq.com] [--no-restart]
-  ./scripts/dd-agent-config.sh cubeapm --url URL [--api-key KEY] [--no-restart]
+  ./scripts/dd-agent-config.sh dual --url URL --api-key KEY [--site us5.datadoghq.com] [--no-restart] [--require-public]
+  ./scripts/dd-agent-config.sh cubeapm --url URL [--api-key KEY] [--no-restart] [--require-public]
   ./scripts/dd-agent-config.sh restart
 
   dual      Ship to Datadog and CubeAPM (DD_SITE + ADDITIONAL_ENDPOINTS)
@@ -33,7 +34,36 @@ Usage:
 URL examples:
   https://clicker-scenic-gallon.ngrok-free.dev
   http://host.docker.internal:3130
+
+  --require-public  Reject localhost / host.docker.internal (cloud VMs)
 EOF
+}
+
+url_is_public() {
+  local u
+  u=$(normalize_url "$1")
+  case "$u" in
+    *localhost*|*127.0.0.1*|*'[::1]'*|*0.0.0.0*|*host.docker.internal*)
+      return 1
+      ;;
+    http://10.*|https://10.*) return 1 ;;
+    http://192.168.*|https://192.168.*) return 1 ;;
+    http://172.1[6-9].*|https://172.1[6-9].*) return 1 ;;
+    http://172.2[0-9].*|https://172.2[0-9].*) return 1 ;;
+    http://172.3[0-1].*|https://172.3[0-1].*) return 1 ;;
+  esac
+  return 0
+}
+
+require_url() {
+  [ -n "$URL" ] || { echo "ERROR: --url is required (CubeAPM base / ngrok origin)"; return 1; }
+  URL=$(normalize_url "$URL")
+  if [ "$REQUIRE_PUBLIC" -eq 1 ] && ! url_is_public "$URL"; then
+    echo "ERROR: cloud runs need a public CubeAPM URL (ngrok https). Got: $URL"
+    echo "host.docker.internal and localhost are this VM, not your laptop CubeAPM."
+    return 1
+  fi
+  return 0
 }
 
 redact() {
@@ -196,6 +226,7 @@ while [ $# -gt 0 ]; do
     --api-key) API_KEY="${2:-}"; shift 2 ;;
     --site) SITE="${2:-}"; shift 2 ;;
     --no-restart) DO_RESTART=0; shift ;;
+    --require-public) REQUIRE_PUBLIC=1; shift ;;
     -h|--help) usage; exit 0 ;;
     *) echo "Unknown arg: $1"; usage; exit 1 ;;
   esac
@@ -205,13 +236,13 @@ case "$MODE" in
   show) cmd_show ;;
   restart) cmd_restart ;;
   dual)
-    [ -n "$URL" ] || { echo "ERROR: dual requires --url (CubeAPM ngrok/base URL)"; exit 1; }
+    require_url || exit 1
     [ -n "$API_KEY" ] || { echo "ERROR: dual requires --api-key (Datadog API key)"; exit 1; }
     write_block "$(block_dual)"
     apply_and_maybe_restart dual
     ;;
   cubeapm)
-    [ -n "$URL" ] || { echo "ERROR: cubeapm requires --url (CubeAPM base URL)"; exit 1; }
+    require_url || exit 1
     write_block "$(block_cubeapm)"
     apply_and_maybe_restart cubeapm
     ;;

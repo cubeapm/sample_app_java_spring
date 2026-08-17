@@ -25,12 +25,18 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/stack.sh <start|stop|down|status|catalog|restart-agent>
 
-  start    Detached compose up, wait until all 5 apps are HTTP-ready
+  start    Ensure Docker (cloud VMs), detached compose up, wait until apps ready
   stop     docker compose stop (keeps images/volumes; fast restart)
   down     docker compose down
   status   compose ps + HTTP probes
   catalog  languages, ports, endpoints, APM names
   restart-agent  force-recreate datadog-agent (reload env)
+
+Cloud / CubeAPM:
+  start calls ./scripts/cloud-docker.sh ensure (no-op on macOS).
+  CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start
+    writes CubeAPM-only export before up. On cloud VMs the URL must be public
+    (ngrok); host.docker.internal is the VM, not your laptop.
 EOF
 }
 
@@ -120,13 +126,36 @@ wait_apps() {
   return 1
 }
 
+apply_cubeapm_url() {
+  [ -n "${CUBEAPM_URL:-}" ] || return 0
+  local extra=()
+  if "$ROOT/scripts/cloud-docker.sh" is-cloud >/dev/null; then
+    extra+=(--require-public)
+  fi
+  echo "CUBEAPM_URL set; writing cubeapm export (no recreate yet)"
+  "$ROOT/scripts/dd-agent-config.sh" cubeapm --url "$CUBEAPM_URL" --no-restart "${extra[@]}"
+}
+
+ensure_runtime() {
+  "$ROOT/scripts/cloud-docker.sh" ensure
+}
+
 cmd_start() {
+  ensure_runtime || return 1
   if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found on PATH"
     return 1
   fi
+  local agent_existed=0
+  if docker compose ps -a --format '{{.Name}}' 2>/dev/null | grep -qx datadog-agent; then
+    agent_existed=1
+  fi
+  apply_cubeapm_url || return 1
   if all_apps_ready; then
     echo "fast-path: stack already ready"
+    if [ -n "${CUBEAPM_URL:-}" ] && [ "$agent_existed" -eq 1 ]; then
+      "$ROOT/scripts/dd-agent-config.sh" restart || return 1
+    fi
     print_status_table
     return 0
   fi
@@ -140,6 +169,9 @@ cmd_start() {
     echo "cold start: docker compose up -d --build"
     timeout_s=240
     docker compose up -d --build
+  fi
+  if [ -n "${CUBEAPM_URL:-}" ] && [ "$agent_existed" -eq 1 ]; then
+    "$ROOT/scripts/dd-agent-config.sh" restart || return 1
   fi
 
   if ! wait_apps "$timeout_s"; then
@@ -220,6 +252,8 @@ Peer proxies (not in endpoints.txt; use traffic.sh --mesh):
   GET /{lang}/publish/rabbit/{topic}/{text}
 
 Traffic: ./scripts/traffic.sh [N] [-s java,nodejs,python,php,dotnet] [-p /path] [--rounds N] [--mesh] [--bg]
+Cloud:   ./scripts/cloud-docker.sh ensure   # install/start Docker + bridge NAT (no-op on macOS)
+         CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start
 EOF
 }
 

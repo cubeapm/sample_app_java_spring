@@ -20,9 +20,21 @@ If anything is missing, **stop and ask**. Do not reuse a key already in the file
 | **dual** (Datadog + CubeAPM) | CubeAPM base URL **and** Datadog `DD_API_KEY` |
 | **cubeapm** (CubeAPM only) | CubeAPM base URL. API key optional (dummy `1234` if omitted) |
 
-URL examples: `https://clicker-scenic-gallon.ngrok-free.dev` or `http://host.docker.internal:3130`.
+URL examples: `https://clicker-scenic-gallon.ngrok-free.dev` (cloud or laptop ngrok) or `http://host.docker.internal:3130` (**local Docker Desktop only**).
 
 If the user did not pick a mode, ask: dual-ship vs CubeAPM-only.
+
+### Cloud agents
+
+A cloud VM cannot reach CubeAPM on the user's laptop. **Stop and ask** for a public HTTPS origin (ngrok) before starting the stack. Parent agent asks; cloud subagent only applies the given URL.
+
+```bash
+./scripts/dd-agent-config.sh cubeapm --url URL --require-public
+# or
+CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start
+```
+
+`--require-public` rejects `localhost` / `host.docker.internal`. Do not reuse the URL already in `docker-compose.yml`.
 
 ## Commands
 
@@ -31,6 +43,7 @@ If the user did not pick a mode, ask: dual-ship vs CubeAPM-only.
 ./scripts/dd-agent-config.sh dual --url URL --api-key KEY
 ./scripts/dd-agent-config.sh cubeapm --url URL
 ./scripts/dd-agent-config.sh cubeapm --url URL --api-key KEY
+./scripts/dd-agent-config.sh cubeapm --url URL --require-public
 ./scripts/dd-agent-config.sh restart          # if applied with --no-restart
 ```
 

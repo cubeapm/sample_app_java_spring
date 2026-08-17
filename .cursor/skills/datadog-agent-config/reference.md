@@ -34,3 +34,5 @@ Comments `DD_SITE` / `DD_ADDITIONAL_ENDPOINTS`. Sets intake URLs to the user-pro
 ```
 
 Local default URL: `http://host.docker.internal:3130`.
+
+Cloud / ngrok: origin only, publicly reachable HTTPS, e.g. `https://clicker-scenic-gallon.ngrok-free.dev`. Never `host.docker.internal` on a cloud VM (that is the VM loopback, not the laptop).
