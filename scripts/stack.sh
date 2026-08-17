@@ -38,6 +38,8 @@ Cloud / CubeAPM:
   CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start
     writes CubeAPM-only export before up. On cloud VMs the URL must be public
     (ngrok); host.docker.internal is the VM, not your laptop.
+  DD_ENV=test-2 ./scripts/stack.sh start
+    tags traces/metrics with that env (default dd-ext2).
 EOF
 }
 
@@ -262,7 +264,7 @@ cmd_restart_agent() {
 
 cmd_catalog() {
   cat <<EOF
-Languages / apps (DD_ENV=dd-ext2):
+Languages / apps (DD_ENV=${DD_ENV:-dd-ext2}):
   java     port 8000  ${JAVA_BASE}     cube_sample_java_spring_boot_datadog
   nodejs   port 8001  ${NODE_BASE}     cube_sample_node_express_datadog
   python   port 8002  ${PYTHON_BASE}   cube_sample_python_flask_datadog

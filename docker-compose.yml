@@ -21,7 +21,7 @@ services:
       - DD_RUNTIME_METRICS_ENABLED=true
       - DD_RUNTIME_METRICS_RUNTIME_ID_ENABLED=true
 
-      - DD_ENV=dd-ext2
+      - DD_ENV=${DD_ENV:-dd-ext2}
       # - DD_VERSION=1.2.3
       # - DD_TAGS=mykey1:myvalue1,mykey2:myvalue2
 
@@ -54,7 +54,7 @@ services:
     container_name: cube_node_express
     environment:
       - DD_SERVICE=cube_sample_node_express_datadog
-      - DD_ENV=dd-ext2
+      - DD_ENV=${DD_ENV:-dd-ext2}
       - DD_AGENT_HOST=datadog-agent
       - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
       - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
@@ -102,7 +102,7 @@ services:
     container_name: cube_python_flask
     environment:
       - DD_SERVICE=cube_sample_python_flask_datadog
-      - DD_ENV=dd-ext2
+      - DD_ENV=${DD_ENV:-dd-ext2}
       - DD_AGENT_HOST=datadog-agent
       - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
       - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
@@ -153,7 +153,7 @@ services:
     container_name: cube_php
     environment:
       - DD_SERVICE=cube_sample_php_datadog
-      - DD_ENV=dd-ext2
+      - DD_ENV=${DD_ENV:-dd-ext2}
       - DD_AGENT_HOST=datadog-agent
       - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
       - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
@@ -202,7 +202,7 @@ services:
     container_name: cube_dotnet_aspnet
     environment:
       - DD_SERVICE=cube_sample_dotnet_aspnet_datadog
-      - DD_ENV=dd-ext2
+      - DD_ENV=${DD_ENV:-dd-ext2}
       - DD_AGENT_HOST=datadog-agent
       - DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED=true
       - DD_TRACE_HTTP_CLIENT_ERROR_STATUSES=400-499,500-599
@@ -269,6 +269,7 @@ services:
       # END DD_AGENT_EXPORT
 
       # Accept traces and metrics from applications running outside the agent host
+      - DD_ENV=${DD_ENV:-dd-ext2}
       - DD_APM_NON_LOCAL_TRAFFIC=true
       - DD_DOGSTATSD_NON_LOCAL_TRAFFIC=true
     volumes:
