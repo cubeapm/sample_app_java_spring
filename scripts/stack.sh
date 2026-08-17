@@ -170,6 +170,7 @@ cmd_start() {
       "$ROOT/scripts/dd-agent-config.sh" restart || return 1
     fi
     print_status_table
+    "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
     return 0
   fi
 
@@ -193,6 +194,7 @@ cmd_start() {
     return 1
   fi
   print_status_table
+  "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
   return 0
 }
 

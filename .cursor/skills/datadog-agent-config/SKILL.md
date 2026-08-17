@@ -44,6 +44,7 @@ CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start
 ./scripts/dd-agent-config.sh cubeapm --url URL
 ./scripts/dd-agent-config.sh cubeapm --url URL --api-key KEY
 ./scripts/dd-agent-config.sh cubeapm --url URL --require-public
+./scripts/dd-agent-config.sh probe
 ./scripts/dd-agent-config.sh restart          # if applied with --no-restart
 ```
 

@@ -31,8 +31,14 @@ Comments `DD_SITE` / `DD_ADDITIONAL_ENDPOINTS`. Sets intake URLs to the user-pro
 - DD_LOGS_CONFIG_USE_HTTP=true
 - DD_LOGS_CONFIG_LOGS_NO_SSL=true   # only when URL is http://
 - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+- DD_FORWARDER_TIMEOUT=60
+- DD_FORWARDER_NUM_WORKERS=1
+- DD_SKIP_SSL_VALIDATION=true
+- DD_LOGS_CONFIG_BATCH_WAIT=5
 ```
 
 Local default URL: `http://host.docker.internal:3130`.
 
 Cloud / ngrok: origin only, publicly reachable HTTPS, e.g. `https://clicker-scenic-gallon.ngrok-free.dev`. Never `host.docker.internal` on a cloud VM (that is the VM loopback, not the laptop).
+
+Ingest check: `./scripts/dd-agent-config.sh probe` POSTs `/intake/` from inside `datadog-agent`. Do not treat a GET 200 as proof of ingest.

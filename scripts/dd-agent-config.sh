@@ -4,7 +4,8 @@
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "$0")/.." && pwd)"
-COMPOSE="${COMPOSE_FILE:-$ROOT/docker-compose.yml}"
+# Export markers live in the base compose file, not COMPOSE_FILE (that may be a overlay list).
+COMPOSE="$ROOT/docker-compose.yml"
 BEGIN="# BEGIN DD_AGENT_EXPORT"
 END="# END DD_AGENT_EXPORT"
 DEFAULT_SITE="us5.datadoghq.com"
@@ -25,11 +26,13 @@ Usage:
   ./scripts/dd-agent-config.sh dual --url URL --api-key KEY [--site us5.datadoghq.com] [--no-restart] [--require-public]
   ./scripts/dd-agent-config.sh cubeapm --url URL [--api-key KEY] [--no-restart] [--require-public]
   ./scripts/dd-agent-config.sh restart
+  ./scripts/dd-agent-config.sh probe
 
   dual      Ship to Datadog and CubeAPM (DD_SITE + ADDITIONAL_ENDPOINTS)
   cubeapm   Ship only to CubeAPM (DD_DD_URL / DD_APM_DD_URL / logs)
   show      Print current export block (API key redacted)
   restart   Force-recreate datadog-agent
+  probe     POST /intake/ from inside datadog-agent (not a GET)
 
 URL examples:
   https://clicker-scenic-gallon.ngrok-free.dev
@@ -182,6 +185,11 @@ block_cubeapm() {
       - DD_LOGS_CONFIG_USE_HTTP=true
       ${ssl_line}
       - DD_LOGS_CONFIG_CONTAINER_COLLECT_ALL=true
+      # ngrok / remote ingest: longer POST timeout, skip TLS verify, one worker
+      - DD_FORWARDER_TIMEOUT=60
+      - DD_FORWARDER_NUM_WORKERS=1
+      - DD_SKIP_SSL_VALIDATION=true
+      - DD_LOGS_CONFIG_BATCH_WAIT=5
       $END
 EOF
 }
@@ -195,6 +203,43 @@ cmd_show() {
   echo "file: $COMPOSE"
   echo "-----"
   current_block | redact
+}
+
+intake_url() {
+  local block url
+  block=$(current_block)
+  url=$(echo "$block" | sed -n 's/^[[:space:]]*- DD_DD_URL=//p' | head -1)
+  if [ -z "$url" ]; then
+    url=$(echo "$block" | sed -n 's/.*DD_ADDITIONAL_ENDPOINTS={"\([^"]*\)".*/\1/p' | head -1)
+  fi
+  echo "$url"
+}
+
+cmd_probe() {
+  local url code
+  url=$(intake_url)
+  if [ -z "$url" ]; then
+    echo "ERROR: no CubeAPM URL in export block (DD_DD_URL / ADDITIONAL_ENDPOINTS)"
+    return 1
+  fi
+  if ! command -v docker >/dev/null 2>&1; then
+    echo "ERROR: docker not found on PATH"
+    return 1
+  fi
+  echo "probe: POST ${url}/intake/ from datadog-agent (max 25s)"
+  code=$(docker exec datadog-agent curl -sk -o /dev/null -w '%{http_code}' --max-time 25 \
+    -X POST "${url}/intake/" \
+    -H 'Content-Type: application/json' \
+    -H 'DD-API-KEY: 1234' \
+    --data '{}' 2>/dev/null) || true
+  if [ -z "$code" ]; then
+    code=000
+  fi
+  echo "probe: HTTP ${code}"
+  case "$code" in
+    2??) echo "probe: CubeAPM ingest reachable from agent"; return 0 ;;
+    *) echo "ERROR: agent POST to CubeAPM /intake/ failed (GET can still be 200)"; return 1 ;;
+  esac
 }
 
 cmd_restart() {
@@ -225,7 +270,7 @@ apply_and_maybe_restart() {
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    show|dual|cubeapm|restart) MODE="$1"; shift ;;
+    show|dual|cubeapm|restart|probe) MODE="$1"; shift ;;
     --url) URL="${2:-}"; shift 2 ;;
     --api-key) API_KEY="${2:-}"; shift 2 ;;
     --site) SITE="${2:-}"; shift 2 ;;
@@ -239,6 +284,7 @@ done
 case "$MODE" in
   show) cmd_show ;;
   restart) cmd_restart ;;
+  probe) cmd_probe ;;
   dual)
     require_url || exit 1
     [ -n "$API_KEY" ] || { echo "ERROR: dual requires --api-key (Datadog API key)"; exit 1; }

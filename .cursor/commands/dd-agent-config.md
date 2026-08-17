@@ -10,6 +10,7 @@ Then run exactly one of:
 ./scripts/dd-agent-config.sh dual --url $URL --api-key $API_KEY
 ./scripts/dd-agent-config.sh cubeapm --url $URL
 ./scripts/dd-agent-config.sh cubeapm --url $URL --require-public
+./scripts/dd-agent-config.sh probe
 ./scripts/dd-agent-config.sh show
 ```
 

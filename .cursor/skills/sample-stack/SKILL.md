@@ -52,7 +52,7 @@ If the compose user-bridge cannot assign IPs (nested ICC broken), `ensure` write
 
 **Parent agent (before launching a cloud subagent):** stop and ask for a public CubeAPM URL (ngrok origin, no path). The user must already be tunneling CubeAPM (e.g. port 3130). Do not guess, do not reuse a URL from compose, do not use `http://host.docker.internal:3130`. Cloud subagents cannot ask the user; pass the URL in the prompt as `CUBEAPM_URL`.
 
-**Cloud agent:** `CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start` then `./scripts/traffic.sh 20`. Export skill: `datadog-agent-config`.
+**Cloud agent:** `CUBEAPM_URL=https://<ngrok> ./scripts/stack.sh start` (includes ingest `probe` POST) then `./scripts/traffic.sh 20`. Export skill: `datadog-agent-config`. Do not treat GET 200 to ngrok as proof of ingest.
 
 ## Quick facts
 
