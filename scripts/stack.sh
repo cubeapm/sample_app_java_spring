@@ -26,7 +26,7 @@ usage() {
   cat <<'EOF'
 Usage: ./scripts/stack.sh <start|stop|down|status|catalog|restart-agent>
 
-  start    Ensure Docker (cloud VMs), detached compose up, wait until apps ready
+  start    Ensure Docker (cloud VMs), detached compose up, wait until apps + RabbitMQ ready
   stop     docker compose stop (keeps images/volumes; fast restart)
   down     docker compose down
   status   compose ps + HTTP probes
@@ -58,6 +58,22 @@ all_apps_ready() {
     [ -z "${name:-}" ] && continue
     code=$(http_code "${base}${PROBE_PATH}" 1)
     if [ "$code" != "200" ] && [ "$code" != "500" ]; then
+      return 1
+    fi
+  done <<EOF
+$APPS
+EOF
+  return 0
+}
+
+# Apps listen before their AMQP clients finish connecting (Node retries in
+# background; Java/PHP/.NET fail the first publish with Connection refused).
+all_rabbit_ready() {
+  local name port base code
+  while IFS='|' read -r name port base; do
+    [ -z "${name:-}" ] && continue
+    code=$(http_code "${base}/publish/rabbit/topic-1/hello" 5)
+    if [ "$code" != "200" ]; then
       return 1
     fi
   done <<EOF
@@ -129,6 +145,44 @@ wait_apps() {
   return 1
 }
 
+wait_rabbit() {
+  local timeout_s="$1"
+  local deadline start_ts now code name port base
+  start_ts=$(date +%s)
+  deadline=$((start_ts + timeout_s))
+
+  echo "waiting for rabbit publish (timeout=${timeout_s}s, GET /publish/rabbit/topic-1/hello)..."
+  while true; do
+    now=$(date +%s)
+    if [ "$now" -ge "$deadline" ]; then
+      break
+    fi
+    if all_rabbit_ready; then
+      echo "$APPS" | while IFS='|' read -r name port base; do
+        [ -z "${name:-}" ] && continue
+        code=$(http_code "${base}/publish/rabbit/topic-1/hello" 5)
+        echo "rabbit ready: $name ($code)"
+      done
+      return 0
+    fi
+    sleep 2
+  done
+
+  echo "$APPS" | while IFS='|' read -r name port base; do
+    [ -z "${name:-}" ] && continue
+    code=$(http_code "${base}/publish/rabbit/topic-1/hello" 5)
+    if [ "$code" = "200" ]; then
+      echo "rabbit ready: $name ($code)"
+    else
+      echo "RABBIT NOT READY: $name (last=$code)"
+    fi
+  done
+  if all_rabbit_ready; then
+    return 0
+  fi
+  return 1
+}
+
 probe_ingest() {
   if "$ROOT/scripts/dd-agent-config.sh" probe; then
     return 0
@@ -192,7 +246,7 @@ cmd_start() {
   if docker compose ps -a --format '{{.Name}}' 2>/dev/null | grep -qx datadog-agent; then
     agent_existed=1
   fi
-  if all_apps_ready; then
+  if all_apps_ready && all_rabbit_ready; then
     echo "fast-path: stack already ready"
     if [ -n "${CUBEAPM_URL:-}" ] && [ "$agent_existed" -eq 1 ]; then
       "$ROOT/scripts/dd-agent-config.sh" restart || return 1
@@ -218,6 +272,11 @@ cmd_start() {
 
   if ! wait_apps "$timeout_s"; then
     echo "ERROR: apps not ready within ${timeout_s}s"
+    print_status_table
+    return 1
+  fi
+  if ! wait_rabbit 90; then
+    echo "ERROR: rabbit publish not ready within 90s (apps are up)"
     print_status_table
     return 1
   fi
@@ -249,9 +308,13 @@ cmd_down() {
 cmd_status() {
   apply_compose_file
   print_status_table
-  if all_apps_ready; then
+  if all_apps_ready && all_rabbit_ready; then
     echo "overall: ready"
     return 0
+  fi
+  if all_apps_ready; then
+    echo "overall: apps HTTP ready; rabbit not ready"
+    return 1
   fi
   echo "overall: not ready"
   return 1

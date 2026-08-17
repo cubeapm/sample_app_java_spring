@@ -178,7 +178,7 @@ run_traffic() {
   done
 
   if command -v xargs >/dev/null 2>&1; then
-    cat "$work_file" | xargs -P "$CONCURRENCY" -n 1 -I '{}' bash -c '
+    cat "$work_file" | xargs -P "$CONCURRENCY" -I '{}' bash -c '
       method=$(echo "$1" | cut -d"|" -f1)
       url=$(echo "$1" | cut -d"|" -f2)
       expect=$(echo "$1" | cut -d"|" -f3)
