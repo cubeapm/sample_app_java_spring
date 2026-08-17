@@ -141,6 +141,7 @@ probe_ingest() {
         extra+=(--require-public)
       fi
       "$ROOT/scripts/dd-agent-config.sh" cubeapm --url "$http" --no-restart "${extra[@]}" || return 1
+      apply_compose_file || return 1
       "$ROOT/scripts/dd-agent-config.sh" restart || return 1
       "$ROOT/scripts/dd-agent-config.sh" probe || echo "WARN: CubeAPM ingest POST from agent failed (apps are up)"
       ;;
@@ -167,9 +168,11 @@ ensure_runtime() {
 apply_compose_file() {
   local mode
   mode=$(cat "$CLOUD_NET_MODE_FILE" 2>/dev/null || echo bridge)
+  export COMPOSE_PROJECT_NAME="${COMPOSE_PROJECT_NAME:-$(basename "$ROOT")}"
   if [ "$mode" = host ]; then
-    export COMPOSE_FILE="$ROOT/docker-compose.yml:$ROOT/docker-compose.cloud.yml"
-    echo "compose overlay: host network"
+    "$ROOT/scripts/cloud-docker.sh" render-host-compose || return 1
+    export COMPOSE_FILE="$ROOT/tmp/docker-compose.host.yml"
+    echo "compose: host network ($COMPOSE_FILE)"
   else
     export COMPOSE_FILE="$ROOT/docker-compose.yml"
   fi
@@ -177,16 +180,16 @@ apply_compose_file() {
 
 cmd_start() {
   ensure_runtime || return 1
-  apply_compose_file
   if ! command -v docker >/dev/null 2>&1; then
     echo "ERROR: docker not found on PATH"
     return 1
   fi
+  apply_cubeapm_url || return 1
+  apply_compose_file || return 1
   local agent_existed=0
   if docker compose ps -a --format '{{.Name}}' 2>/dev/null | grep -qx datadog-agent; then
     agent_existed=1
   fi
-  apply_cubeapm_url || return 1
   if all_apps_ready; then
     echo "fast-path: stack already ready"
     if [ -n "${CUBEAPM_URL:-}" ] && [ "$agent_existed" -eq 1 ]; then

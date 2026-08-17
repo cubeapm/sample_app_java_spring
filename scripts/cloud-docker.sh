@@ -17,13 +17,14 @@ CLOUD_NET_MODE_FILE="${CLOUD_NET_MODE_FILE:-$ROOT/tmp/cloud-net-mode}"
 
 usage() {
   cat <<'EOF'
-Usage: ./scripts/cloud-docker.sh <ensure|status|net|verify|is-cloud>
+Usage: ./scripts/cloud-docker.sh <ensure|status|net|verify|is-cloud|render-host-compose>
 
   ensure   Install Docker if missing, start dockerd, fix bridge NAT/FORWARD
   status   Docker daemon + forwarding + is-cloud
   net      Apply ip_forward / FORWARD ACCEPT / MASQUERADE only
   verify   Two-container ping + egress smoke test
   is-cloud Exit 0 if this looks like a nested/cloud Linux VM
+  render-host-compose  Write tmp/docker-compose.host.yml (no networks/ports)
 EOF
 }
 
@@ -379,7 +380,7 @@ cmd_ensure() {
   fi
 
   if is_cloud; then
-    echo "user-bridge ICC still broken; falling back to host network (docker-compose.cloud.yml)"
+    echo "user-bridge egress still broken; falling back to host network (tmp/docker-compose.host.yml)"
     set_net_mode host
     return 0
   fi
@@ -387,6 +388,11 @@ cmd_ensure() {
   echo "ERROR: Docker is up but compose-bridge networking still fails."
   echo "Apps will not reach mysql/redis/kafka or CubeAPM/ngrok from inside containers."
   return 1
+}
+
+cmd_render_host() {
+  mkdir -p "$ROOT/tmp"
+  python3 "$ROOT/scripts/render-host-compose.py" "$ROOT"
 }
 
 main() {
@@ -397,6 +403,7 @@ main() {
     net) cmd_net ;;
     verify) cmd_verify ;;
     is-cloud) cmd_is_cloud ;;
+    render-host-compose) cmd_render_host ;;
     -h|--help|help|"") usage; [ -n "$cmd" ] ;;
     *) echo "Unknown command: $cmd"; usage; return 1 ;;
   esac
