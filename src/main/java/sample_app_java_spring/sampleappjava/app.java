@@ -52,7 +52,7 @@ public class app {
         return "API called: " + response;
     }
 
-    // curl http://localhost:8080/mysql/add -d name="xyz" -d email="xyz@gmail.com"
+    // curl http://localhost:8000/mysql/add -d name="xyz" -d email="xyz@gmail.com"
     @PostMapping("/mysql/add")
     public @ResponseBody User addNewUser(@RequestParam String name , @RequestParam String email) {
         logger.info("mysql called to add user");
@@ -65,7 +65,7 @@ public class app {
     }
 
     // get all the added values above(using sql database)
-    // curl http://localhost:8080/all
+    // curl http://localhost:8000/all
     @GetMapping("/all")
     public @ResponseBody Iterable<User> getAllUsers() {
         logger.info("all users called");
